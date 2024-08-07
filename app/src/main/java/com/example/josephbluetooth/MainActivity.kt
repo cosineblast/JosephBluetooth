@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,6 +17,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import java.io.DataOutputStream
+import java.util.UUID
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,14 +36,36 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("seila", "Arranjei os ${pairedDevices.size} dispositivos")
 
+        // TODO: mostrar em interface gráfica lista de dispositivos para usuário selecionar e parear
+        val device = pairedDevices.find { it.address == "88:78:73:13:3A:C0" }
 
-        pairedDevices.forEach { device ->
-            val deviceName = device.name
-            val deviceHardwareAddress = device.address
-
-            Log.d("seila", "Device name: $deviceName")
-            Log.d("seila", "Device MAC address: $deviceHardwareAddress")
+        if (device == null) {
+            Log.d("seila", "Não encontrei o pc >-<")
+            return
         }
+
+        thread {
+            bluetoothAdapter.cancelDiscovery()
+
+
+            // que horror
+            val socket = device.javaClass.getMethod("createRfcommSocket", *arrayOf(Int::class.java)).invoke(device,1) as BluetoothSocket
+
+            socket.use {
+                Log.d("seila", "consegui o socket")
+
+                socket.connect()
+
+                Log.d("seila", "conectado no socket")
+
+                val rawStream = socket.outputStream
+
+                val dataStream = DataOutputStream(rawStream)
+
+                dataStream.writeUTF("hi there")
+            }
+        }
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
