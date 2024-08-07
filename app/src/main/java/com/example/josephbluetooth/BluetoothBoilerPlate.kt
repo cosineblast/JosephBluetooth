@@ -24,7 +24,6 @@ class BluetoothBoilerPlate(val activity: AppCompatActivity) {
         else {
             requestBluetooth()
         }
-
     }
 
     private fun getAdapter(): BluetoothAdapter {

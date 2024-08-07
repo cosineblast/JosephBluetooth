@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +18,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.josephbluetooth.wire.FrameKt
+import com.example.josephbluetooth.wire.Thing.Frame
 import java.io.DataOutputStream
 import java.util.UUID
 import kotlin.concurrent.thread
@@ -25,9 +28,12 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var bluetoothAdapter: BluetoothAdapter
 
+    var bluetoothSocket: BluetoothSocket? = null
+
     @SuppressLint("MissingPermission")
-    fun execute() {
-        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
+    fun connectBluetooth(adapter: BluetoothAdapter) {
+
+        val pairedDevices: Set<BluetoothDevice>? = adapter.bondedDevices
 
         if (pairedDevices == null) {
             Log.d("seila", "Não consegui arranjar dispositivos :(")
@@ -45,8 +51,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         thread {
-            bluetoothAdapter.cancelDiscovery()
-
+            adapter.cancelDiscovery()
 
             // que horror
             val socket = device.javaClass.getMethod("createRfcommSocket", *arrayOf(Int::class.java)).invoke(device,1) as BluetoothSocket
@@ -58,14 +63,37 @@ class MainActivity : AppCompatActivity() {
 
                 Log.d("seila", "conectado no socket")
 
-                val rawStream = socket.outputStream
+                this.bluetoothSocket = socket
 
-                val dataStream = DataOutputStream(rawStream)
-
-                dataStream.writeUTF("hi there")
+                onConnect()
             }
         }
+    }
 
+    data class Message(
+        val x: Double,
+        val y: Double,
+        val z: Double
+    )
+
+    fun sendMessage(message: Message) {
+        val socket = bluetoothSocket!!
+
+        val thing = Frame.newBuilder()
+            .setX(message.x)
+            .setY(message.y)
+            .setZ(message.z)
+            .build()
+            .writeTo(socket.outputStream)
+    }
+
+    fun onConnect() {
+        sendMessage(Message(1.0, 1.0, 1.0))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        this.bluetoothSocket?.close()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,8 +109,7 @@ class MainActivity : AppCompatActivity() {
         val helper = BluetoothBoilerPlate(this)
 
         helper.callback = { adapter ->
-            this.bluetoothAdapter = adapter
-            execute()
+            connectBluetooth(adapter)
         }
 
         helper.setup()
