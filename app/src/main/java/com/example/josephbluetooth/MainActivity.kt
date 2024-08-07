@@ -21,65 +21,6 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var bluetoothAdapter: BluetoothAdapter
 
-    private fun loadBluetooth() {
-        requestBluetooth()
-
-        val bluetoothManager: BluetoothManager? = getSystemService(BluetoothManager::class.java)
-        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager?.adapter
-
-        if (bluetoothAdapter == null) {
-            Log.d("seila", "Não tem adapter :(")
-            return
-        }
-
-        Log.d("seila", "Tem adapter")
-
-        this.bluetoothAdapter = bluetoothAdapter
-    }
-
-    private val requestMultiplePermissions =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            if (permissions.entries.all { it.value }) {
-                Log.d("seila", "deu bom!")
-                execute();
-            } else {
-                Log.d("seila", "deu ruim :(")
-            }
-        }
-
-    private val requestEnableBluetooth =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                Log.d("seila", "deu bom")
-
-                execute()
-            } else {
-                Log.d("seila", "deu ruim")
-            }
-        }
-
-    fun requestBluetooth() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            requestMultiplePermissions.launch(
-                arrayOf(
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                )
-            )
-        } else {
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            requestEnableBluetooth.launch(enableBtIntent)
-        }
-    }
-
-
-    fun hasBluetoothPermission(): Boolean {
-        return ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.BLUETOOTH_CONNECT
-        ) != PackageManager.PERMISSION_GRANTED
-    }
-
     @SuppressLint("MissingPermission")
     fun execute() {
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
@@ -111,10 +52,14 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        loadBluetooth()
+        val helper = BluetoothBoilerPlate(this)
 
-        if (hasBluetoothPermission()) {
+        helper.callback = { adapter ->
+            this.bluetoothAdapter = adapter
             execute()
         }
+
+        helper.setup()
+
     }
 }
