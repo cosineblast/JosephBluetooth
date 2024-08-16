@@ -1,32 +1,21 @@
 package com.example.josephbluetooth
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
-import android.os.Message
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.josephbluetooth.wire.FrameKt
-import com.example.josephbluetooth.wire.Thing.Frame
+import org.json.JSONObject
 import java.io.DataOutputStream
-import java.util.UUID
+import java.io.OutputStream
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
-
-    lateinit var bluetoothAdapter: BluetoothAdapter
 
     var bluetoothSocket: BluetoothSocket? = null
 
@@ -54,7 +43,8 @@ class MainActivity : AppCompatActivity() {
             adapter.cancelDiscovery()
 
             // que horror
-            val socket = device.javaClass.getMethod("createRfcommSocket", *arrayOf(Int::class.java)).invoke(device,1) as BluetoothSocket
+            val socket = device.javaClass.getMethod("createRfcommSocket", *arrayOf(Int::class.java))
+                .invoke(device, 1) as BluetoothSocket
 
             socket.use {
                 Log.d("seila", "consegui o socket")
@@ -76,15 +66,25 @@ class MainActivity : AppCompatActivity() {
         val z: Double
     )
 
+    fun serializeMessage(message: Message, stream: OutputStream) {
+        val result = JSONObject()
+        result.put("x", message.x)
+        result.put("y", message.y)
+        result.put("z", message.z)
+
+        val bytes = result.toString().toByteArray(Charsets.UTF_8)
+
+        val newStream = DataOutputStream(stream)
+
+        newStream.writeInt(bytes.size)
+        newStream.write(bytes)
+        newStream.flush()
+    }
+
     fun sendMessage(message: Message) {
         val socket = bluetoothSocket!!
 
-        val thing = Frame.newBuilder()
-            .setX(message.x)
-            .setY(message.y)
-            .setZ(message.z)
-            .build()
-            .writeTo(socket.outputStream)
+        serializeMessage(message, socket.outputStream)
     }
 
     fun onConnect() {
